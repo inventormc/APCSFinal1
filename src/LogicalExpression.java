@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public interface LogicalExpression {
@@ -76,4 +77,6 @@ public interface LogicalExpression {
 	 * @return string[] with the unique variables of a sentence
 	 */
 	String[] getDistinctVariables();
+	
+	boolean hasOtherVariables(ArrayList<String> variables);
 }

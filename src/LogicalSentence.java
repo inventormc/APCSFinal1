@@ -164,7 +164,8 @@ public class LogicalSentence implements LogicalExpression {
 	 */
 	@Override
 	public ThreeValuedVariable entails(LogicalExpression le) {
-		if(getNumOfDistinctVariablesInSentence() == le.getNumOfDistinctVariablesInSentence()){
+		if(getNumOfDistinctVariablesInSentence() == le.getNumOfDistinctVariablesInSentence()
+				&& isSameVariables(le)){
 			HashMap<String,Integer>[] satisfyingFirst = getSatisfyingValues();//assignments that satisfy the first
 			
 			boolean [] outcomesOfSecond = new boolean[satisfyingFirst.length];//array to store outcomes of testing on the second sentence
@@ -177,7 +178,7 @@ public class LogicalSentence implements LogicalExpression {
 				}
 			}
 			return new ThreeValuedVariable(1);//if all outcomes of testing on second sentence are true, the first entails the second
-		}else if(getNumOfDistinctVariablesInSentence() < le.getNumOfDistinctVariablesInSentence()){
+		}else if(!hasOtherVariables(getSameVariables(le)) && le.hasOtherVariables(getSameVariables(this))){
 			HashMap<String,Integer>[] satisfyingFirst = getSatisfyingValues();//assignments that satisfy the first
 			
 			int difference = le.getNumOfDistinctVariablesInSentence() - getNumOfDistinctVariablesInSentence();
@@ -225,7 +226,7 @@ public class LogicalSentence implements LogicalExpression {
 				}
 			}
 			return new ThreeValuedVariable(1);//true
-		}else if(getNumOfDistinctVariablesInSentence() > le.getNumOfDistinctVariablesInSentence()){
+		}else if(hasOtherVariables(getSameVariables(le)) && !le.hasOtherVariables(getSameVariables(this))){
 			HashMap<String,Integer>[] satisfyingFirst = getSatisfyingValues();//assignments that satisfy the first
 			
 			String[] first = getDistinctVariables();//first variables
@@ -257,9 +258,107 @@ public class LogicalSentence implements LogicalExpression {
 				}
 			}
 			return new ThreeValuedVariable(1);//true
+		}else if(hasOtherVariables(getSameVariables(le)) && le.hasOtherVariables(getSameVariables(this))){
+			ArrayList<String> same = getSameVariables(le);
+			
+			HashMap<String,Integer>[] satisfyingFirst = getSatisfyingValues();//assignments that satisfy the first
+			HashMap<String,Integer>[] firstPartOfSecond = new HashMap[satisfyingFirst.length];
+			for(int i = 0;i < satisfyingFirst.length;i++){
+				firstPartOfSecond[i] = new HashMap<String,Integer>();
+				for(int j = 0;j < same.size();j++){
+					firstPartOfSecond[i].put(same.get(j), satisfyingFirst[i].get(same.get(j)));
+				}
+			}
+			ArrayList<String> temp = new ArrayList<>();
+			String[] secondVariables = le.getDistinctVariables();
+			for(int i = 0;i < same.size();i++){
+				for(int j = 0;j < secondVariables.length;j++){
+					if(!secondVariables[j].equals(same.get(i))){
+						temp.add(secondVariables[j]);
+					}
+				}
+			}
+			
+			String fakeSentence = "";
+			int index = 0;
+			for(int i = 0;i < (temp.size() * 2) - 1;i++){
+				if(i % 2 == 0){
+					fakeSentence += temp.get(index);
+					index++;
+				}else{
+					fakeSentence += "&";
+				}
+			}
+			HashMap<String,Integer>[] secondPart = new LogicalSentence(fakeSentence).allTruthAssignments();//all possible truth values for second sentence
+			HashMap<String,Integer>[] testOnSecond = new HashMap[satisfyingFirst.length * secondPart.length];//values to test on second sentence
+			for(int i = 0;i < testOnSecond.length;i++){
+				testOnSecond[i] = new HashMap<String,Integer>();
+			}
+			index = 0;
+			for(int i = 0;i < satisfyingFirst.length;i++){
+				for(int j = 0;j < secondPart.length;j++){
+					testOnSecond[index].putAll(satisfyingFirst[i]);
+					testOnSecond[index].putAll(secondPart[j]);//merge hashmap satisfyingfirst and secondpart, so we have values
+															//to assign to all variables in the second sentence
+					index++;
+				}
+			}
+			boolean [] outcomesOfSecond = new boolean[testOnSecond.length];//array to store outcomes of testing on the second sentence
+			for(int i = 0;i < testOnSecond.length;i++){
+				outcomesOfSecond[i] = le.evaluate(testOnSecond[i]);//test values on second sentence
+			}
+			for(int i = 0;i < outcomesOfSecond.length;i++){
+				if(!outcomesOfSecond[i]){
+					return new ThreeValuedVariable(-1);//does not entail if there is any false outcome
+				}
+			}
+			return new ThreeValuedVariable(1);//true
 		}else{
 			return new ThreeValuedVariable(0);//else, entails cannot be undetermined
 		}
+	}
+	public boolean isSameVariables(LogicalExpression le){
+		String[] first = getDistinctVariables();
+		String[] second = le.getDistinctVariables();
+		for(int i = 0;i < first.length;i++){
+			for(int j = 0;j < second.length;j++){
+				if(!first[i].equals(second[j])){
+					return false;
+				}
+			}
+		}
+		for(int i = 0;i < second.length;i++){
+			for(int j = 0;j < first.length;j++){
+				if(!second[i].equals(first[j])){
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	
+	public ArrayList<String> getSameVariables(LogicalExpression le){
+		String[] first = getDistinctVariables();
+		String[] second = le.getDistinctVariables();
+		ArrayList<String> inCommon = new ArrayList<>();
+		for(int i = 0;i < first.length;i++){
+			for(int j = 0;j < second.length;j++){
+				if(first[i].equals(second[j])){
+					inCommon.add(first[i]);
+				}
+			}
+		}
+		return inCommon;
+	}
+	
+	public boolean hasOtherVariables(ArrayList<String> has){
+		String[] variables = getDistinctVariables();
+		for(int i = 0;i < variables.length;i++){
+			if(!has.contains(variables[i])){
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	/**
